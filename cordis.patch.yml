@@ -1,0 +1,9 @@
+# Bundle patch for dsh-hardware-monitor.
+#
+# This plugin provides a real-time hardware monitoring dashboard integrated into DSH Web UI.
+# It monitors: CPU per-core utilization, CPU temperature, memory usage, GPU utilization, VRAM, and GPU temperature.
+#
+# The loader mounts the server backend as a Cordis host plugin.
+- insert:
+    - id: hardware-monitor
+      name: dsh-hardware-monitor

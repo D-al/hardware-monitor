@@ -1,0 +1,43 @@
+{
+  "name": "dsh-hardware-monitor",
+  "version": "1.0.0",
+  "description": "DSH 硬件状态可视化监视器 — 实时监控 CPU 核利用率/温度、内存占用、GPU 利用率/显存/温度",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "server/",
+    "ui/"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "hardware-monitor",
+    "cpu",
+    "gpu",
+    "memory",
+    "temperature",
+    "realtime"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "dsh": {
+    "displayName": "硬件状态可视化监视器",
+    "description": "实时监测并可视化展示 CPU 每核利用率、CPU/GPU 温度、内存占用、GPU 利用率和显存使用量",
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

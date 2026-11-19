@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>硬件状态可视化监视器 — 演示模式</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid rgba(100, 200, 255, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #00d2ff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .metrics-row {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+        }
+        
+        .metric-box {
+            text-align: center;
+        }
+        
+        .metric-label {
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #fff;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        
+        .core-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .core-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .core-label {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        
+        .core-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4caf50;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            transition: width 0.3s ease;
+        }
+        
+        /* GPU sub-panel styles */
+        .gpu-subgrid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .gpu-subpanel {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px 5px;
+        }
+        
+        .gpu-sublabel {
+            font-size: 0.75em;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        
+        .vram-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .vram-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .vram-item-label {
+            font-size: 0.7em;
+            color: #999;
+            margin-bottom: 3px;
+        }
+        
+        .vram-item-value {
+            font-size: 1em;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .core-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .gpu-subgrid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🖥️ 硬件状态可视化监视器 — 演示模式</h1>
+    </div>
+    
+    <div class="status-bar">
+        <span id="connectionStatus">🟢 模拟数据模式</span>
+        <span id="lastUpdate">最后更新: --</span>
+    </div>
+    
+    <div class="dashboard-grid">
+        <!-- CPU Core Utilization -->
+        <div class="card">
+            <div class="card-title">CPU 每核利用率</div>
+            <div style="text-align: center; margin-bottom: 10px;">
+                <span id="cpuAvg" style="color: #00d2ff; font-size: 1.1em;">平均: --%</span>
+            </div>
+            <div class="core-grid" id="cpuCoreGrid"></div>
+            <div class="chart-container" id="cpuChart"></div>
+        </div>
+        
+        <!-- Memory Usage -->
+        <div class="card">
+            <div class="card-title">内存占用</div>
+            <div class="metrics-row">
+                <div class="metric-box">
+                    <div class="metric-label">使用率</div>
+                    <div class="metric-value" id="memPercent">--%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">已用 / 总量</div>
+                    <div id="memDetail" style="font-size: 1.1em; color: #fff;">-- GB / -- GB</div>
+                </div>
+            </div>
+            <div class="chart-container" id="memChart"></div>
+        </div>
+        
+        <!-- Temperature Monitoring -->
+        <div class="card">
+            <div class="card-title">温度监控</div>
+            <div class="metrics-row">
+                <div class="metric-box">
+                    <div class="metric-label">CPU 温度</div>
+                    <div class="metric-value" id="tempCpu">--°C</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">GPU 温度</div>
+                    <div class="metric-value" id="tempGpu">--°C</div>
+                </div>
+            </div>
+            <div class="chart-container" id="tempChart"></div>
+        </div>
+        
+        <!-- GPU Engine Utilization -->
+        <div class="card">
+            <div class="card-title">GPU 引擎核心利用率</div>
+            <div class="gpu-subgrid">
+                <div class="gpu-subpanel">
+                    <div class="gpu-sublabel">通用计算 (3D)</div>
+                    <div class="metric-value" id="gpuUtilGeneral" style="font-size: 1.5em;">--%</div>
+                </div>
+                <div class="gpu-subpanel">
+                    <div class="gpu-sublabel">视频解码器</div>
+                    <div class="metric-value" id="gpuUtilDecoder" style="font-size: 1.5em; color: #4caf50;">--%</div>
+                </div>
+                <div class="gpu-subpanel">
+                    <div class="gpu-sublabel">编码器 (Copy)</div>
+                    <div class="metric-value" id="gpuUtilEncoder" style="font-size: 1.5em; color: #ff9800;">--%</div>
+                </div>
+            </div>
+            <div class="chart-container" id="gpuUtilChart"></div>
+        </div>
+        
+        <!-- Dedicated VRAM Usage -->
+        <div class="card">
+            <div class="card-title">专用显存占用</div>
+            <div class="vram-detail-grid">
+                <div class="vram-item">
+                    <div class="vram-item-label">已使用</div>
+                    <div class="vram-item-value" id="vramUsedMB">-- MB</div>
+                </div>
+                <div class="vram-item">
+                    <div class="vram-item-label">可用</div>
+                    <div class="vram-item-value" id="vramFreeMB">-- MB</div>
+                </div>
+                <div class="vram-item">
+                    <div class="vram-item-label">保留</div>
+                    <div class="vram-item-value" id="vramReservedMB">-- MB</div>
+                </div>
+                <div class="vram-item">
+                    <div class="vram-item-label">总计</div>
+                    <div class="vram-item-value" id="vramTotalMB">-- MB</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <span style="color: #aaa; font-size: 0.9em;">使用率：</span>
+                <span id="vramPercent" style="font-weight: bold; font-size: 1.2em;">--%</span>
+            </div>
+            <div class="chart-container" id="vramChart"></div>
+        </div>
+    </div>
+
+    <script>
+        // Demo data simulation parameters
+        const DEMO_CONFIG = {
+            cpuCores: 8,
+            memTotalGB: 32,
+            gpuVramTotalMB: 8192,
+            baseValues: {
+                cpuAvg: 35,
+                memPercent: 62,
+                tempCpu: 58,
+                tempGpu: 52,
+                gpuGeneralUtil: 45,
+                gpuDecoderUtil: 20,
+                gpuEncoderUtil: 10,
+                vramPercent: 45
+            }
+        };
+        
+        // History buffers for time-series charts (last 60 points)
+        const HISTORY_LENGTH = 60;
+        const history = {
+            labels: [],
+            cpuAvg: [],
+            memUsed: [],
+            vramUsed: [],
+            tempCpu: [],
+            tempGpu: [],
+            gpuGeneral: [],
+            gpuDecoder: [],
+            gpuEncoder: []
+        };
+        
+        let cpuChart, memChart, tempChart, gpuUtilChart, vramChart;
+        
+        /**
+         * Generate simulated hardware stats with realistic fluctuations
+         */
+        function generateDemoStats() {
+            const jitter = (base, range) => Math.max(0, Math.min(100, base + (Math.random() - 0.5) * range));
+            
+            const cpuCores = [];
+            let totalCoreUsage = 0;
+            for (let i = 0; i < DEMO_CONFIG.cpuCores; i++) {
+                const usage = jitter(DEMO_CONFIG.baseValues.cpuAvg / DEMO_CONFIG.cpuCores * 2, 30);
+                cpuCores.push(Math.round(usage * 10) / 10);
+                totalCoreUsage += usage;
+            }
+            const avg = Math.round((totalCoreUsage / cpuCores.length) * 10) / 10;
+            
+            const memPercent = jitter(DEMO_CONFIG.baseValues.memPercent, 10);
+            const memUsedGB = (memPercent / 100 * DEMO_CONFIG.memTotalGB).toFixed(2);
+            
+            const tempCpu = jitter(DEMO_CONFIG.baseValues.tempCpu, 8);
+            const tempGpu = jitter(DEMO_CONFIG.baseValues.tempGpu, 6);
+            
+            // GPU multi-engine utilization
+            const generalUtil = jitter(DEMO_CONFIG.baseValues.gpuGeneralUtil, 25);
+            const decoderUtil = jitter(DEMO_CONFIG.baseValues.gpuDecoderUtil, 30);
+            const encoderUtil = jitter(DEMO_CONFIG.baseValues.gpuEncoderUtil, 20);
+            
+            const vramPercent = jitter(DEMO_CONFIG.baseValues.vramPercent, 8);
+            const vramUsedMB = Math.round(vramPercent / 100 * DEMO_CONFIG.gpuVramTotalMB);
+            const vramFreeMB = DEMO_CONFIG.gpuVramTotalMB - vramUsedMB;
+            const vramReservedMB = Math.round(DEMO_CONFIG.gpuVramTotalMB * 0.1);
+            
+            return {
+                timestamp: new Date().toLocaleTimeString(),
+                cpu: { cores: cpuCores, average: avg },
+                memory: { 
+                    percent_used: Math.round(memPercent), 
+                    used_gb: parseFloat(memUsedGB),
+                    total_gb: DEMO_CONFIG.memTotalGB
+                },
+                temperatures: { cpu: Math.round(tempCpu), gpu: Math.round(tempGpu) },
+                gpu: { 
+                    utilization: Math.round(generalUtil),
+                    decoder_util: Math.round(decoderUtil),
+                    encoder_util: Math.round(encoderUtil),
+                    vram_total_mb: DEMO_CONFIG.gpuVramTotalMB,
+                    vram_used_mb: vramUsedMB,
+                    vram_free_mb: vramFreeMB,
+                    vram_reserved_mb: vramReservedMB,
+                    vram_percent: Math.round(vramPercent)
+                }
+            };
+        }
+        
+        /**
+         * Initialize ECharts instances
+         */
+        function initCharts() {
+            cpuChart = echarts.init(document.getElementById('cpuChart'));
+            memChart = echarts.init(document.getElementById('memChart'));
+            tempChart = echarts.init(document.getElementById('tempChart'));
+            gpuUtilChart = echarts.init(document.getElementById('gpuUtilChart'));
+            vramChart = echarts.init(document.getElementById('vramChart'));
+            
+            const commonOption = {
+                backgroundColor: 'transparent',
+                grid: { top: 30, right: 20, bottom: 30, left: 50 },
+                tooltip: { trigger: 'axis' },
+                xAxis: {
+                    type: 'category',
+                    data: [],
+                    axisLine: { lineStyle: { color: '#888' } },
+                    axisLabel: { color: '#aaa' }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { lineStyle: { color: '#888' } },
+                    axisLabel: { color: '#aaa' }
+                },
+                series: []
+            };
+            
+            // CPU average trend
+            cpuChart.setOption({
+                ...commonOption,
+                title: { text: 'CPU 平均利用率趋势', left: 'center', textStyle: { color: '#aaa', fontSize: 12 } },
+                series: [{ name: 'CPU%', type: 'line', smooth: true, data: [], areaStyle: { opacity: 0.3 } }],
+                yAxis: { max: 100 }
+            });
+            
+            // Memory usage trend
+            memChart.setOption({
+                ...commonOption,
+                title: { text: '内存使用率趋势', left: 'center', textStyle: { color: '#aaa', fontSize: 12 } },
+                series: [{ name: 'Mem%', type: 'line', smooth: true, data: [], areaStyle: { opacity: 0.3 } }],
+                yAxis: { max: 100 }
+            });
+            
+            // Temperature trend
+            tempChart.setOption({
+                ...commonOption,
+                title: { text: '温度趋势', left: 'center', textStyle: { color: '#aaa', fontSize: 12 } },
+                series: [
+                    { name: 'CPU°', type: 'line', smooth: true, data: [], lineStyle: { color: '#ff9800' } },
+                    { name: 'GPU°', type: 'line', smooth: true, data: [], lineStyle: { color: '#f44336' } }
+                ]
+            });
+            
+            // GPU Engine Utilization trend (3 engines)
+            gpuUtilChart.setOption({
+                ...commonOption,
+                title: { text: 'GPU 引擎利用率趋势', left: 'center', textStyle: { color: '#aaa', fontSize: 12 } },
+                series: [
+                    { name: '通用计算', type: 'line', smooth: true, data: [], lineStyle: { color: '#4caf50' } },
+                    { name: '解码器', type: 'line', smooth: true, data: [], lineStyle: { color: '#2196f3' } },
+                    { name: '编码器', type: 'line', smooth: true, data: [], lineStyle: { color: '#ff9800' } }
+                ],
+                legend: { bottom: 0, textStyle: { color: '#aaa' } },
+                yAxis: { max: 100 }
+            });
+            
+            // VRAM usage trend
+            vramChart.setOption({
+                ...commonOption,
+                title: { text: '专用显存使用率趋势', left: 'center', textStyle: { color: '#aaa', fontSize: 12 } },
+                series: [{ name: 'VRAM%', type: 'line', smooth: true, data: [], areaStyle: { opacity: 0.3 } }],
+                yAxis: { max: 100 }
+            });
+        }
+        
+        /**
+         * Update dashboard with new stats
+         */
+        function updateDashboard(stats) {
+            document.getElementById('lastUpdate').textContent = `最后更新: ${stats.timestamp}`;
+            
+            // Update CPU cores grid
+            const gridEl = document.getElementById('cpuCoreGrid');
+            gridEl.innerHTML = '';
+            stats.cpu.cores.forEach((coreUsage, idx) => {
+                let color = '#4caf50';
+                if (coreUsage > 70) color = '#ff9800';
+                if (coreUsage > 90) color = '#f44336';
+                
+                const coreItem = document.createElement('div');
+                coreItem.className = 'core-item';
+                coreItem.innerHTML = `
+                    <div class="core-label">核心 ${idx}</div>
+                    <div class="core-value" style="color: ${color}">${coreUsage}%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${coreUsage}%; background: ${color}"></div>
+                    </div>
+                `;
+                gridEl.appendChild(coreItem);
+            });
+            
+            document.getElementById('cpuAvg').textContent = `平均: ${stats.cpu.average}%`;
+            
+            // Update memory
+            document.getElementById('memPercent').textContent = `${stats.memory.percent_used}%`;
+            document.getElementById('memDetail').textContent = 
+                `${stats.memory.used_gb.toFixed(2)} GB / ${stats.memory.total_gb.toFixed(2)} GB`;
+            
+            // Update temperatures
+            const tempCpuEl = document.getElementById('tempCpu');
+            const tempGpuEl = document.getElementById('tempGpu');
+            
+            tempCpuEl.textContent = `${stats.temperatures.cpu}°C`;
+            tempCpuEl.style.color = stats.temperatures.cpu > 85 ? '#f44336' : 
+                                    stats.temperatures.cpu > 70 ? '#ff9800' : '#fff';
+            
+            tempGpuEl.textContent = `${stats.temperatures.gpu}°C`;
+            tempGpuEl.style.color = stats.temperatures.gpu > 85 ? '#f44336' : 
+                                    stats.temperatures.gpu > 70 ? '#ff9800' : '#fff';
+            
+            // Update GPU engine utilization sub-panels
+            const generalUtil = stats.gpu.utilization ?? 0;
+            const decoderUtil = stats.gpu.decoder_util ?? 0;
+            const encoderUtil = stats.gpu.encoder_util ?? 0;
+            
+            const utilGeneralEl = document.getElementById('gpuUtilGeneral');
+            utilGeneralEl.textContent = `${generalUtil}%`;
+            utilGeneralEl.style.color = generalUtil > 90 ? '#f44336' : generalUtil > 70 ? '#ff9800' : '#fff';
+            
+            const decEl = document.getElementById('gpuUtilDecoder');
+            decEl.textContent = `${decoderUtil}%`;
+            decEl.style.color = decoderUtil > 90 ? '#f44336' : decoderUtil > 70 ? '#ff9800' : '#4caf50';
+            
+            const encEl = document.getElementById('gpuUtilEncoder');
+            encEl.textContent = `${encoderUtil}%`;
+            encEl.style.color = encoderUtil > 90 ? '#f44336' : encoderUtil > 70 ? '#ff9800' : '#ff9800';
+            
+            // Update VRAM detail grid
+            document.getElementById('vramUsedMB').textContent = `${stats.gpu.vram_used_mb} MB (${(stats.gpu.vram_used_mb/1024).toFixed(2)} GB)`;
+            document.getElementById('vramFreeMB').textContent = `${stats.gpu.vram_free_mb} MB (${(stats.gpu.vram_free_mb/1024).toFixed(2)} GB)`;
+            document.getElementById('vramReservedMB').textContent = `${stats.gpu.vram_reserved_mb} MB (${(stats.gpu.vram_reserved_mb/1024).toFixed(2)} GB)`;
+            document.getElementById('vramTotalMB').textContent = `${stats.gpu.vram_total_mb} MB (${(stats.gpu.vram_total_mb/1024).toFixed(2)} GB)`;
+            
+            const vramPercentEl = document.getElementById('vramPercent');
+            vramPercentEl.textContent = `${stats.gpu.vram_percent}%`;
+            vramPercentEl.style.color = stats.gpu.vram_percent > 90 ? '#f44336' : stats.gpu.vram_percent > 70 ? '#ff9800' : '#fff';
+            
+            // Update time-series charts — unified single push per tick
+            const now = new Date().toLocaleTimeString();
+            while (history.labels.length >= HISTORY_LENGTH) {
+                history.labels.shift();
+                history.cpuAvg.shift();
+                history.memUsed.shift();
+                history.vramUsed.shift();
+                history.tempCpu.shift();
+                history.tempGpu.shift();
+                history.gpuGeneral.shift();
+                history.gpuDecoder.shift();
+                history.gpuEncoder.shift();
+            }
+            history.labels.push(now);
+            history.cpuAvg.push(stats.cpu.average);
+            history.memUsed.push(stats.memory.percent_used);
+            history.tempCpu.push(stats.temperatures.cpu);
+            history.tempGpu.push(stats.temperatures.gpu);
+            history.vramUsed.push(stats.gpu.vram_percent);
+            history.gpuGeneral.push(generalUtil);
+            history.gpuDecoder.push(decoderUtil);
+            history.gpuEncoder.push(encoderUtil);
+            
+            cpuChart.setOption({
+                xAxis: { data: history.labels },
+                series: [{ data: history.cpuAvg }]
+            });
+            
+            memChart.setOption({
+                xAxis: { data: history.labels },
+                series: [{ data: history.memUsed }]
+            });
+            
+            tempChart.setOption({
+                xAxis: { data: history.labels },
+                series: [
+                    { data: history.tempCpu },
+                    { data: history.tempGpu }
+                ]
+            });
+            
+            gpuUtilChart.setOption({
+                xAxis: { data: history.labels },
+                series: [
+                    { name: '通用计算', data: history.gpuGeneral, lineStyle: { color: '#4caf50' } },
+                    { name: '解码器', data: history.gpuDecoder, lineStyle: { color: '#2196f3' } },
+                    { name: '编码器', data: history.gpuEncoder, lineStyle: { color: '#ff9800' } }
+                ]
+            });
+            
+            vramChart.setOption({
+                xAxis: { data: history.labels },
+                series: [{ data: history.vramUsed }]
+            });
+        }
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            
+            // Initial render
+            const initialStats = generateDemoStats();
+            updateDashboard(initialStats);
+            
+            // Auto-refresh every 2 seconds with new simulated data
+            setInterval(() => {
+                const stats = generateDemoStats();
+                updateDashboard(stats);
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
